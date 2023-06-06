@@ -1,107 +1,66 @@
-import { Component } from 'react';
-import ImageGallery from './ImageGallery/ImageGallery';
-import Searchbar from './Searchbar/Searchbar';
-import css from '../styles.module.css';
-import Notiflix from 'notiflix';
-import Modal from './Modal/Modal';
+import { useState } from 'react';
 
-export class App extends Component {
-  state = {
-    searchQueary: '',
-    page: 1,
-    pageAmount: 12,
-    images: [],
-    status: 'idle',
-    largeImageURL: '',
-    showModal: false,
-    error: false,
-  };
+import Section from './Section/Section';
+import FeedbackOptions from './FeedbackOptions/FeedbackOptions';
+import Statistics from './Statistics/Statistics';
+import Notification from './Notification/Notification';
 
-  async componentDidUpdate(prevProps, prevState) {
-    const { page, searchQueary } = this.state;
-    const newQueary = searchQueary;
-    const nextPage = page;
-    const prevPage = prevState.page;
-    const prevQueary = prevState.searchQueary;
-    const images = this.state.images;
+export function App() {
+  const [good, setGood] = useState(0);
+  const [neutral, setNeutral] = useState(0);
+  const [bad, setBad] = useState(0);
 
-    if (prevQueary !== newQueary || prevPage !== nextPage) {
-      this.setState({ status: 'pending' });
+  const onLeaveFeedback = e => {
+    const { name } = e.target;
 
-      fetch(
-        `https://pixabay.com/api/?q=${newQueary}&page=${nextPage}&key=36858767-c9bdee91508ce121a2eb6b95d&image_type=photo&orientation=horizontal&per_page=12`
-      )
-        .then(response => {
-          if (response.ok) {
-            return response.json();
-          }
-
-          return Promise.reject(new Error('Opps, something went wrong'));
-        })
-        .then(data => {
-          const { hits, total, totalHits } = data;
-
-          this.setState({
-            images: [...images, ...hits],
-            pageCount: Math.ceil(totalHits / 12),
-            status: 'resolved',
-          });
-
-          if (total === 0) {
-            Notiflix.Notify.info('Sorry, there is no image found');
-            return this.setState({ status: 'rejected' });
-          }
-        })
-        .catch(error => {
-          console.log(error.message);
-          this.setState({ status: 'rejected' });
-        });
+    switch (name) {
+      case 'good':
+        setGood(prevState => prevState + 1);
+        break;
+      case 'neutral':
+        setNeutral(prevState => prevState + 1);
+        break;
+      case 'bad':
+        setBad(prevState => prevState + 1);
+        break;
+      default:
+        return;
     }
-  }
-
-  handleFormSubmit = searchQueary => {
-    if (searchQueary === this.state.searchQueary) {
-      return Notiflix.Notify.info(
-        'You have already searched this :) Please enter something else'
-      );
-    }
-
-    return this.setState({ searchQueary, page: 1, images: [], pageCount: 12 });
   };
 
-  handleLoadMoreClick = () => {
-    this.setState(({ page }) => ({ page: page + 1 }));
+  const countTotalFeedback = () => {
+    return good + neutral + bad;
   };
 
-  handleImageClick = largeImgURL => {
-    console.log('largeImageURL >>>', largeImgURL);
-    this.setState({ largeImageURL: largeImgURL });
-    this.toggleModal();
+  const countPositiveFeedbackPercentage = () => {
+    return Math.round((good / countTotalFeedback()) * 100);
   };
 
-  toggleModal = () => {
-    this.setState({ showModal: !this.state.showModal });
-  };
+  const options = ['good', 'neutral', 'bad'];
 
-  render() {
-    return (
-      <div>
-        <Searchbar onSubmit={this.handleFormSubmit} />
-        <ImageGallery
-          className={css.ImageGallery}
-          images={this.state.images}
-          error={this.state.error}
-          pageChanger={this.handleLoadMoreClick}
-          status={this.state.status}
-          onImageClick={this.handleImageClick}
-        />
-        {this.state.showModal && (
-          <Modal
-            closeModal={this.toggleModal}
-            largeImageURL={this.state.largeImageURL}
+  return (
+    <div
+      style={{
+        width: '300px',
+        marginRigth: 'auto',
+      }}
+    >
+      <Section title="Please leave a feedback">
+        <FeedbackOptions options={options} onLeaveFeedback={onLeaveFeedback} />
+      </Section>
+      <Section title="Statistics">
+        {countTotalFeedback() ? (
+          <Statistics
+            good={good}
+            neutral={neutral}
+            bad={bad}
+            total={countTotalFeedback}
+            positivePercentage={countPositiveFeedbackPercentage}
           />
+        ) : (
+          <Notification message="There is no feedback" />
         )}
-      </div>
-    );
-  }
+      </Section>
+    </div>
+  );
 }
